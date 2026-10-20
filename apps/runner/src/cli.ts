@@ -4,6 +4,8 @@ import { Command } from 'commander';
 import { loadConfig } from '@pixelbreak/config';
 import { Scanner } from './scanner.js';
 import { updateBaselinesFromScreenshots } from '@pixelbreak/visual-diff';
+import { loadWaiversFile, evaluatePolicy } from '@pixelbreak/policy-engine';
+import { installPreCommitHook } from '@pixelbreak/git-integration';
 import fs from 'node:fs';
 import path from 'node:path';
 
@@ -16,17 +18,24 @@ program
 
 program
   .command('check')
-  .description('Run configured responsive breakpoint and visual regression checks')
+  .description('Run configured responsive breakpoint and visual regression checks with severity policy gate')
   .option('-c, --config <path>', 'Path to .pixelbreak.yml configuration file')
+  .option('-w, --waivers <path>', 'Path to .pixelbreak-waivers.yml waivers file')
   .action(async (options) => {
     try {
       console.log('🔍 Loading PixelBreak configuration...');
       const config = loadConfig(options.config);
 
+      const waiversPath = options.waivers ?? path.resolve(process.cwd(), config.waivers.file);
+      const waivers = loadWaiversFile(waiversPath);
+
       console.log(`🚀 Starting scan for project '${config.project.name}'...`);
       console.log(`   Base URL: ${config.project.baseUrl}`);
       console.log(`   Profile:  ${config.viewports.profile}`);
       console.log(`   Widths:   [${config.viewports.widths.join(', ')}]px`);
+      if (waivers.length > 0) {
+        console.log(`   Waivers:  Loaded ${waivers.length} active waiver rule(s) from ${path.basename(waiversPath)}`);
+      }
 
       const scanner = new Scanner({ config });
       const result = await scanner.run();
@@ -39,38 +48,49 @@ program
         console.log('   ℹ️  No baselines found. Run `pixelbreak baseline update` to create them.');
       }
 
-      if (result.findings.length === 0) {
-        console.log('\n✅ All responsive and visual checks passed! No issues detected.');
-        process.exit(0);
+      // Evaluate Findings against Policy Engine and Waivers
+      const policyResult = evaluatePolicy({
+        findings: result.findings,
+        config,
+        waivers,
+        scanId: result.scanId,
+      });
+
+      console.log('\n⚖️  Policy Engine Decision:');
+      console.log(`   Status:   ${policyResult.decision.toUpperCase()}`);
+      console.log(`   Blocked:  ${policyResult.blockedCount}`);
+      console.log(`   Waived:   ${policyResult.waivedCount}`);
+      console.log(`   Allowed:  ${policyResult.allowedCount}`);
+
+      if (policyResult.findings.length > 0) {
+        console.log('\n📋 Evaluated Findings:');
+        for (const fe of policyResult.findings) {
+          const finding = fe.finding;
+          let statusLabel = '🚨 BLOCKED';
+          if (fe.waived) {
+            statusLabel = `🛡️  WAIVED (Waiver: ${fe.waiverId})`;
+          } else if (fe.action === 'allow') {
+            statusLabel = 'ℹ️  ALLOWED';
+          }
+
+          console.log(`\n  ${statusLabel} [${finding.severity.toUpperCase()}] ${finding.ruleId} @ ${finding.viewport.width}px (${finding.route})`);
+          console.log(`     Summary:  ${finding.summary}`);
+          if (finding.selector) {
+            console.log(`     Element:  ${finding.selector}`);
+          }
+          if (fe.reasons.length > 0) {
+            console.log(`     Policy:   ${fe.reasons.join(' ')}`);
+          }
+        }
       }
 
-      console.log('\n⚠️  Issues detected:');
-      let hasBlocking = false;
-
-      for (const finding of result.findings) {
-        const icon = finding.severity === 'critical' || finding.severity === 'high' ? '🚨' : '⚠️';
-        console.log(`\n  ${icon} [${finding.severity.toUpperCase()}] ${finding.ruleId} @ ${finding.viewport.width}px (${finding.route})`);
-        console.log(`     Summary:  ${finding.summary}`);
-        if (finding.selector) {
-          console.log(`     Element:  ${finding.selector}`);
-        }
-        if (finding.currentImage) {
-          console.log(`     Current:  ${finding.currentImage}`);
-        }
-        if (finding.diffImage) {
-          console.log(`     Diff:     ${finding.diffImage}`);
-        }
-
-        if (finding.severity === 'high' || finding.severity === 'critical') {
-          hasBlocking = true;
-        }
-      }
-
-      if (hasBlocking) {
-        console.log('\n❌ Scan failed: High or critical severity regressions detected.');
+      if (policyResult.decision === 'block') {
+        console.log('\n❌ Commit Gate: BLOCKED by PixelBreak policy.');
+        console.log('   To resolve: fix the detected regressions, or add a scoped waiver for moderate issues.');
+        console.log('   Emergency bypass: PIXELBREAK_BYPASS=1 git commit');
         process.exit(1);
       } else {
-        console.log('\n⚠️  Scan finished with moderate or low findings.');
+        console.log('\n✅ Commit Gate: PASSED. All findings satisfied policy criteria.');
         process.exit(0);
       }
     } catch (err: unknown) {
@@ -118,15 +138,11 @@ baselineCmd
 
 program
   .command('init')
-  .description('Initialize .pixelbreak.yml configuration')
+  .description('Initialize .pixelbreak.yml configuration and pre-commit Git hook')
   .action(() => {
     const targetPath = path.join(process.cwd(), '.pixelbreak.yml');
-    if (fs.existsSync(targetPath)) {
-      console.log('ℹ️  .pixelbreak.yml already exists.');
-      return;
-    }
-
-    const template = `version: 1
+    if (!fs.existsSync(targetPath)) {
+      const template = `version: 1
 
 project:
   name: my-app
@@ -164,8 +180,19 @@ ai:
   requiredForExplanations: true
   requiredForFixSuggestions: true
 `;
-    fs.writeFileSync(targetPath, template, 'utf-8');
-    console.log('✅ Created .pixelbreak.yml template');
+      fs.writeFileSync(targetPath, template, 'utf-8');
+      console.log('✅ Created .pixelbreak.yml template');
+    } else {
+      console.log('ℹ️  .pixelbreak.yml already exists.');
+    }
+
+    // Install pre-commit hook
+    const hookResult = installPreCommitHook();
+    if (hookResult.success) {
+      console.log(`✅ ${hookResult.message}`);
+    } else {
+      console.log(`⚠️  ${hookResult.message}`);
+    }
   });
 
 program.parse(process.argv);

@@ -11,6 +11,8 @@ export default defineConfig({
       '@pixelbreak/config': path.resolve(__dirname, './packages/config/src'),
       '@pixelbreak/layout-analyzer': path.resolve(__dirname, './packages/layout-analyzer/src'),
       '@pixelbreak/visual-diff': path.resolve(__dirname, './packages/visual-diff/src'),
+      '@pixelbreak/policy-engine': path.resolve(__dirname, './packages/policy-engine/src'),
+      '@pixelbreak/git-integration': path.resolve(__dirname, './packages/git-integration/src'),
       '@pixelbreak/runner': path.resolve(__dirname, './apps/runner/src'),
     },
   },

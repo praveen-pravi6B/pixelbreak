@@ -5,6 +5,8 @@
     { "path": "./packages/config" },
     { "path": "./packages/layout-analyzer" },
     { "path": "./packages/visual-diff" },
+    { "path": "./packages/policy-engine" },
+    { "path": "./packages/git-integration" },
     { "path": "./apps/runner" }
   ]
 }

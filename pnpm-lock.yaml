@@ -26,9 +26,15 @@ importers:
       '@pixelbreak/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts
+      '@pixelbreak/git-integration':
+        specifier: workspace:*
+        version: link:../../packages/git-integration
       '@pixelbreak/layout-analyzer':
         specifier: workspace:*
         version: link:../../packages/layout-analyzer
+      '@pixelbreak/policy-engine':
+        specifier: workspace:*
+        version: link:../../packages/policy-engine
       '@pixelbreak/visual-diff':
         specifier: workspace:*
         version: link:../../packages/visual-diff
@@ -80,11 +86,39 @@ importers:
         specifier: ^5.7.2
         version: 5.9.3
 
+  packages/git-integration:
+    devDependencies:
+      '@types/node':
+        specifier: ^22.10.2
+        version: 22.20.5
+      typescript:
+        specifier: ^5.7.2
+        version: 5.9.3
+      vitest:
+        specifier: ^2.1.8
+        version: 2.1.9(@types/node@22.20.5)
+
   packages/layout-analyzer:
     dependencies:
       '@pixelbreak/contracts':
         specifier: workspace:*
         version: link:../contracts
+    devDependencies:
+      typescript:
+        specifier: ^5.7.2
+        version: 5.9.3
+      vitest:
+        specifier: ^2.1.8
+        version: 2.1.9(@types/node@22.20.5)
+
+  packages/policy-engine:
+    dependencies:
+      '@pixelbreak/contracts':
+        specifier: workspace:*
+        version: link:../contracts
+      yaml:
+        specifier: ^2.7.0
+        version: 2.9.1
     devDependencies:
       typescript:
         specifier: ^5.7.2

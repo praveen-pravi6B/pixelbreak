@@ -24,7 +24,9 @@
   "dependencies": {
     "@pixelbreak/config": "workspace:*",
     "@pixelbreak/contracts": "workspace:*",
+    "@pixelbreak/git-integration": "workspace:*",
     "@pixelbreak/layout-analyzer": "workspace:*",
+    "@pixelbreak/policy-engine": "workspace:*",
     "@pixelbreak/visual-diff": "workspace:*",
     "commander": "^13.1.0",
     "playwright": "^1.50.0"
