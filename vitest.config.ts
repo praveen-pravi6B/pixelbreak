@@ -10,6 +10,7 @@ export default defineConfig({
       '@pixelbreak/contracts': path.resolve(__dirname, './packages/contracts/src'),
       '@pixelbreak/config': path.resolve(__dirname, './packages/config/src'),
       '@pixelbreak/layout-analyzer': path.resolve(__dirname, './packages/layout-analyzer/src'),
+      '@pixelbreak/visual-diff': path.resolve(__dirname, './packages/visual-diff/src'),
       '@pixelbreak/runner': path.resolve(__dirname, './apps/runner/src'),
     },
   },

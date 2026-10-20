@@ -1,50 +1,50 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { spawn, type ChildProcess } from 'node:child_process';
+import http from 'node:http';
 import path from 'node:path';
 import fs from 'node:fs';
 import { loadConfig } from '@pixelbreak/config';
 import { Scanner } from '@pixelbreak/runner';
 
 describe('Phase B --- Breakpoint Detective E2E', () => {
-  let serverProcess: ChildProcess;
+  let server: http.Server;
   const configPath = path.resolve(process.cwd(), '.pixelbreak.yml');
+  const distDir = path.resolve(process.cwd(), 'fixtures/broken-demo/dist');
 
   beforeAll(async () => {
-    // Start preview server on port 4173
-    serverProcess = spawn(
-      'pnpm',
-      ['--filter', '@pixelbreak/broken-demo', 'preview', '--port', '4173'],
-      {
-        stdio: 'pipe',
-        env: {
-          ...process.env,
-          PATH: `/home/praveen/.nvm/versions/node/v22.17.1/bin:${process.env.PATH}`,
-        },
-      }
-    );
-
-    // Wait until server is listening
-    let ready = false;
-    for (let i = 0; i < 30; i++) {
-      try {
-        const res = await fetch('http://localhost:4173');
-        if (res.ok) {
-          ready = true;
-          break;
+    // Start pure Node.js HTTP server on port 4173 for demo dist
+    await new Promise<void>((resolve, reject) => {
+      server = http.createServer((req, res) => {
+        let reqPath = req.url?.split('?')[0] || '/';
+        if (reqPath === '/' || !path.extname(reqPath)) {
+          reqPath = '/index.html';
         }
-      } catch {
-        await new Promise((r) => setTimeout(r, 200));
-      }
-    }
+        const filePath = path.join(distDir, reqPath);
+        if (fs.existsSync(filePath) && fs.statSync(filePath).isFile()) {
+          const ext = path.extname(filePath);
+          const contentType =
+            ext === '.html'
+              ? 'text/html'
+              : ext === '.css'
+              ? 'text/css'
+              : ext === '.js'
+              ? 'application/javascript'
+              : 'application/octet-stream';
+          res.writeHead(200, { 'Content-Type': contentType });
+          fs.createReadStream(filePath).pipe(res);
+        } else {
+          res.writeHead(404);
+          res.end('Not found');
+        }
+      });
 
-    if (!ready) {
-      throw new Error('Failed to start demo preview server on http://localhost:4173');
-    }
-  }, 15000);
+      server.listen(4173, () => resolve());
+      server.on('error', reject);
+    });
+  });
 
   afterAll(async () => {
-    if (serverProcess) {
-      serverProcess.kill('SIGTERM');
+    if (server) {
+      await new Promise<void>((resolve) => server.close(() => resolve()));
     }
   });
 

@@ -3,6 +3,7 @@
 import { Command } from 'commander';
 import { loadConfig } from '@pixelbreak/config';
 import { Scanner } from './scanner.js';
+import { updateBaselinesFromScreenshots } from '@pixelbreak/visual-diff';
 import fs from 'node:fs';
 import path from 'node:path';
 
@@ -15,7 +16,7 @@ program
 
 program
   .command('check')
-  .description('Run configured responsive breakpoint and layout checks')
+  .description('Run configured responsive breakpoint and visual regression checks')
   .option('-c, --config <path>', 'Path to .pixelbreak.yml configuration file')
   .action(async (options) => {
     try {
@@ -34,9 +35,12 @@ program
       console.log(`   Duration:  ${result.durationMs}ms`);
       console.log(`   Viewports: ${result.viewportsScanned.join(', ')}px`);
       console.log(`   Findings:  ${result.findings.length}`);
+      if (!result.hasBaselines && config.checks.visualRegression) {
+        console.log('   ℹ️  No baselines found. Run `pixelbreak baseline update` to create them.');
+      }
 
       if (result.findings.length === 0) {
-        console.log('\n✅ All responsive checks passed! No layout issues detected.');
+        console.log('\n✅ All responsive and visual checks passed! No issues detected.');
         process.exit(0);
       }
 
@@ -51,7 +55,10 @@ program
           console.log(`     Element:  ${finding.selector}`);
         }
         if (finding.currentImage) {
-          console.log(`     Evidence: ${finding.currentImage}`);
+          console.log(`     Current:  ${finding.currentImage}`);
+        }
+        if (finding.diffImage) {
+          console.log(`     Diff:     ${finding.diffImage}`);
         }
 
         if (finding.severity === 'high' || finding.severity === 'critical') {
@@ -60,7 +67,7 @@ program
       }
 
       if (hasBlocking) {
-        console.log('\n❌ Scan failed: High or critical severity layout regressions detected.');
+        console.log('\n❌ Scan failed: High or critical severity regressions detected.');
         process.exit(1);
       } else {
         console.log('\n⚠️  Scan finished with moderate or low findings.');
@@ -73,9 +80,45 @@ program
     }
   });
 
+const baselineCmd = program.command('baseline').description('Manage visual regression baselines');
+
+baselineCmd
+  .command('update')
+  .description('Explicitly capture and approve baseline screenshots from the current application')
+  .option('-c, --config <path>', 'Path to .pixelbreak.yml configuration file')
+  .action(async (options) => {
+    try {
+      console.log('🔍 Loading PixelBreak configuration...');
+      const config = loadConfig(options.config);
+
+      console.log(`📸 Capturing fresh screenshots for project '${config.project.name}'...`);
+      const scanner = new Scanner({
+        config,
+        scanId: `baseline-${Date.now()}`,
+      });
+      const result = await scanner.run();
+
+      const { updatedFiles } = updateBaselinesFromScreenshots(
+        result.screenshots,
+        scanner.baselineDir
+      );
+
+      console.log(`\n✅ Successfully updated ${updatedFiles.length} baseline(s):`);
+      for (const file of updatedFiles) {
+        console.log(`   - ${file}`);
+      }
+      console.log('\nBaselines have been explicitly approved.');
+      process.exit(0);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      console.error(`\n❌ Error updating baselines: ${message}`);
+      process.exit(2);
+    }
+  });
+
 program
   .command('init')
-  .description('Initialize .pixelbreak.yml configuration and pre-commit hook')
+  .description('Initialize .pixelbreak.yml configuration')
   .action(() => {
     const targetPath = path.join(process.cwd(), '.pixelbreak.yml');
     if (fs.existsSync(targetPath)) {

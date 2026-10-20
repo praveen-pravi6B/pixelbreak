@@ -4,6 +4,7 @@
     { "path": "./packages/contracts" },
     { "path": "./packages/config" },
     { "path": "./packages/layout-analyzer" },
+    { "path": "./packages/visual-diff" },
     { "path": "./apps/runner" }
   ]
 }

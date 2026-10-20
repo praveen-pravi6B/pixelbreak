@@ -10,6 +10,12 @@ import {
   type OverflowElementInfo,
   type ClippedElementInfo,
 } from '@pixelbreak/layout-analyzer';
+import {
+  compareImages,
+  createVisualDiffFinding,
+  getBaselinePath,
+  sanitizeRouteName,
+} from '@pixelbreak/visual-diff';
 
 export interface ScannerOptions {
   config: PixelBreakConfig;
@@ -25,19 +31,23 @@ export interface ScanResult {
   routesScanned: string[];
   viewportsScanned: number[];
   screenshots: Record<string, string>; // key: `${route}-${width}` -> absolute path
+  diffImages: Record<string, string>; // key: `${route}-${width}` -> absolute path
+  hasBaselines: boolean;
   durationMs: number;
 }
 
 export class Scanner {
-  private config: PixelBreakConfig;
-  private scanId: string;
-  private outputDir: string;
-  private toolVersion: string;
+  public readonly config: PixelBreakConfig;
+  public readonly scanId: string;
+  public readonly outputDir: string;
+  public readonly baselineDir: string;
+  public readonly toolVersion: string;
 
   constructor(options: ScannerOptions) {
     this.config = options.config;
     this.scanId = options.scanId ?? `scan-${Date.now()}`;
     this.outputDir = options.outputDir ?? path.join(process.cwd(), '.pixelbreak');
+    this.baselineDir = path.join(this.outputDir, 'baselines');
     this.toolVersion = options.toolVersion ?? '0.1.0';
   }
 
@@ -45,13 +55,14 @@ export class Scanner {
     const startTime = Date.now();
     const findings: Finding[] = [];
     const screenshots: Record<string, string> = {};
+    const diffImages: Record<string, string> = {};
 
     const screenshotsDir = path.join(this.outputDir, 'artifacts', 'screenshots', this.scanId);
+    const diffsDir = path.join(this.outputDir, 'artifacts', 'diffs', this.scanId);
     fs.mkdirSync(screenshotsDir, { recursive: true });
+    fs.mkdirSync(diffsDir, { recursive: true });
 
     // Enforce configured viewport profile constraints
-    // Rule: Desktop-only applications must not be tested at mobile widths unless configured.
-    // Only configured, supported widths are in scope.
     const widthsToTest = this.config.viewports.widths.filter((w) => {
       return w >= this.config.viewports.minWidth && w <= this.config.viewports.maxWidth;
     });
@@ -59,6 +70,8 @@ export class Scanner {
     const browser: Browser = await chromium.launch({
       headless: true,
     });
+
+    let anyBaselineFound = false;
 
     try {
       for (const route of this.config.project.routes) {
@@ -101,58 +114,94 @@ export class Scanner {
               timeout: 15000,
             });
 
-            // Brief wait for any initial layout settling
             await page.waitForTimeout(300);
 
             // Screenshot capture
-            const sanitizedRoute = route.replace(/\//g, '_').replace(/^_/, '') || 'root';
+            const sanitizedRoute = sanitizeRouteName(route);
             const screenshotFileName = `${sanitizedRoute}_${width}px.png`;
             const screenshotPath = path.join(screenshotsDir, screenshotFileName);
 
             await page.screenshot({
               path: screenshotPath,
-              fullPage: false, // Match configured viewport dimensions
+              fullPage: false,
             });
 
             const screenshotKey = `${route}-${width}`;
             screenshots[screenshotKey] = screenshotPath;
 
             // 1. Run deterministic Horizontal Overflow Detection
-            const overflowElements: OverflowElementInfo[] = await page.evaluate(
-              inPageDetectHorizontalOverflow,
-              { width, height }
-            );
+            if (this.config.checks.responsive) {
+              const overflowElements: OverflowElementInfo[] = await page.evaluate(
+                inPageDetectHorizontalOverflow,
+                { width, height }
+              );
 
-            if (overflowElements.length > 0) {
-              const overflowFindings = createHorizontalOverflowFindings(overflowElements, {
-                scanId: this.scanId,
-                toolVersion: this.toolVersion,
-                route,
-                viewport: { width, height },
-              });
+              if (overflowElements.length > 0) {
+                const overflowFindings = createHorizontalOverflowFindings(overflowElements, {
+                  scanId: this.scanId,
+                  toolVersion: this.toolVersion,
+                  route,
+                  viewport: { width, height },
+                });
 
-              for (const f of overflowFindings) {
-                f.currentImage = screenshotPath;
-                findings.push(f);
+                for (const f of overflowFindings) {
+                  f.currentImage = screenshotPath;
+                  findings.push(f);
+                }
+              }
+
+              // 2. Run deterministic Element Clipping Detection
+              const clippedElements: ClippedElementInfo[] = await page.evaluate(
+                inPageDetectElementClipping
+              );
+
+              if (clippedElements.length > 0) {
+                const clippingFindings = createElementClippingFindings(clippedElements, {
+                  scanId: this.scanId,
+                  toolVersion: this.toolVersion,
+                  route,
+                  viewport: { width, height },
+                });
+
+                for (const f of clippingFindings) {
+                  f.currentImage = screenshotPath;
+                  findings.push(f);
+                }
               }
             }
 
-            // 2. Run deterministic Element Clipping Detection
-            const clippedElements: ClippedElementInfo[] = await page.evaluate(
-              inPageDetectElementClipping
-            );
+            // 3. PixelTruth: Visual Regression Diffing against baseline
+            if (this.config.checks.visualRegression) {
+              const baselinePath = getBaselinePath(this.baselineDir, route, width);
 
-            if (clippedElements.length > 0) {
-              const clippingFindings = createElementClippingFindings(clippedElements, {
-                scanId: this.scanId,
-                toolVersion: this.toolVersion,
-                route,
-                viewport: { width, height },
-              });
+              if (fs.existsSync(baselinePath)) {
+                anyBaselineFound = true;
+                const baselineBuf = fs.readFileSync(baselinePath);
+                const currentBuf = fs.readFileSync(screenshotPath);
 
-              for (const f of clippingFindings) {
-                f.currentImage = screenshotPath;
-                findings.push(f);
+                const diffResult = compareImages(baselineBuf, currentBuf);
+
+                let diffImagePath = '';
+                if (diffResult.diffPixels > 0) {
+                  const diffFileName = `${sanitizedRoute}_${width}px_diff.png`;
+                  diffImagePath = path.join(diffsDir, diffFileName);
+                  fs.writeFileSync(diffImagePath, diffResult.diffImageBuffer);
+                  diffImages[screenshotKey] = diffImagePath;
+                }
+
+                const visualFinding = createVisualDiffFinding(diffResult, {
+                  scanId: this.scanId,
+                  toolVersion: this.toolVersion,
+                  route,
+                  viewport: { width, height },
+                  baselineImagePath: baselinePath,
+                  currentImagePath: screenshotPath,
+                  diffImagePath: diffImagePath || screenshotPath,
+                });
+
+                if (visualFinding) {
+                  findings.push(visualFinding);
+                }
               }
             }
           } finally {
@@ -173,6 +222,8 @@ export class Scanner {
       routesScanned: this.config.project.routes,
       viewportsScanned: widthsToTest,
       screenshots,
+      diffImages,
+      hasBaselines: anyBaselineFound,
       durationMs,
     };
   }
