@@ -1,0 +1,37 @@
+version: 1
+
+project:
+  name: broken-demo
+  baseUrl: http://localhost:4173
+  routes:
+    - /
+
+viewports:
+  profile: desktop-only
+  minWidth: 1024
+  maxWidth: 1920
+  widths: [1024, 1280, 1440, 1920]
+  required: true
+
+checks:
+  responsive: true
+  visualRegression: true
+  failOnScannerError: true
+
+severity:
+  critical: block
+  high: block
+  moderate: require-waiver
+  low: allow
+  informational: allow
+
+waivers:
+  file: .pixelbreak-waivers.yml
+  requireReason: true
+  allowExpiry: true
+
+ai:
+  provider: local
+  endpoint: http://localhost:8080
+  requiredForExplanations: true
+  requiredForFixSuggestions: true

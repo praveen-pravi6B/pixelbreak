@@ -1,0 +1,27 @@
+# Node dependencies
+node_modules/
+.pnpm-store/
+.pnpm-cache/
+.pnpm-state/
+
+# Build artifacts
+dist/
+build/
+*.tsbuildinfo
+
+# Test and coverage
+coverage/
+playwright-report/
+test-results/
+
+# PixelBreak runtime and generated artifacts
+.pixelbreak/
+*.log
+
+# Environment and IDE
+.env
+.env.local
+.DS_Store
+.idea/
+.vscode/
+*.swp

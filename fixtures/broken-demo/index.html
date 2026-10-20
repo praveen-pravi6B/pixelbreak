@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>PixelBreak Fixture - Broken Demo App</title>
+    <link rel="stylesheet" href="./src/style.css" />
+  </head>
+  <body>
+    <header class="app-header">
+      <div class="logo">⚡ BrokenDemo App</div>
+      <nav class="nav-links">
+        <a href="#overview">Overview</a>
+        <a href="#analytics">Analytics</a>
+        <a href="#settings">Settings</a>
+      </nav>
+    </header>
+
+    <main class="main-content">
+      <section class="hero-section">
+        <h1>Team Performance Dashboard</h1>
+        <p class="subtitle">
+          Internal reporting dashboard configured strictly for desktop screens.
+        </p>
+      </section>
+
+      <!-- Known layout failure: min-width 1200px overflows viewport at 1024px -->
+      <section class="metrics-container" id="metrics-card">
+        <div class="metric-card">
+          <div class="metric-title">Active Deployments</div>
+          <div class="metric-value">42</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-title">Average Latency</div>
+          <div class="metric-value">18ms</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-title">Uptime</div>
+          <div class="metric-value">99.98%</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-title">Error Rate</div>
+          <div class="metric-value">0.02%</div>
+        </div>
+      </section>
+
+      <section class="table-section">
+        <h2>Recent Deployments</h2>
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Service</th>
+              <th>Version</th>
+              <th>Status</th>
+              <th>Deployed At</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>auth-service</td>
+              <td>v2.4.1</td>
+              <td><span class="badge badge-success">Healthy</span></td>
+              <td>10 mins ago</td>
+            </tr>
+            <tr>
+              <td>payment-gateway</td>
+              <td>v1.12.0</td>
+              <td><span class="badge badge-success">Healthy</span></td>
+              <td>1 hour ago</td>
+            </tr>
+            <tr>
+              <td>image-processor</td>
+              <td>v3.0.2</td>
+              <td><span class="badge badge-warning">Degraded</span></td>
+              <td>3 hours ago</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+    </main>
+
+    <script type="module" src="./src/main.ts"></script>
+  </body>
+</html>
