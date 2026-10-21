@@ -9,6 +9,7 @@
     { "path": "../../packages/config" },
     { "path": "../../packages/layout-analyzer" },
     { "path": "../../packages/visual-diff" },
+    { "path": "../../packages/ai-engine" },
     { "path": "../../packages/policy-engine" },
     { "path": "../../packages/git-integration" }
   ],
