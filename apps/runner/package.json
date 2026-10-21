@@ -22,6 +22,7 @@
     "lint": "tsc --noEmit"
   },
   "dependencies": {
+    "@pixelbreak/ai-engine": "workspace:*",
     "@pixelbreak/config": "workspace:*",
     "@pixelbreak/contracts": "workspace:*",
     "@pixelbreak/git-integration": "workspace:*",
