@@ -39,7 +39,7 @@ export function startDashboardServer(outputDir: string): Promise<{ port: number;
 
       // Artifact serving (screenshots, diffs)
       if (url.startsWith('/artifacts/')) {
-        return handleArtifact(req, res, url)
+        return handleArtifact(req, res, url, outputDir)
       }
 
       // Static dashboard files
@@ -102,24 +102,34 @@ function handleApiReports(
 function handleArtifact(
   _req: http.IncomingMessage,
   res: http.ServerResponse,
-  url: string
+  url: string,
+  outputDir: string
 ): void {
   // /artifacts/<absolute-path> — serve the file directly
   // The client encodes the absolute path after /artifacts/
   const encodedPath = url.slice('/artifacts/'.length)
   const filePath = decodeURIComponent(encodedPath)
 
-  if (!fs.existsSync(filePath)) {
+  // Validate that the resolved path is within the outputDir to prevent traversal
+  const artifactRoot = path.resolve(outputDir, 'artifacts')
+  const resolvedPath = path.resolve(filePath)
+  if (!resolvedPath.startsWith(artifactRoot + path.sep) && resolvedPath !== artifactRoot) {
+    res.writeHead(403)
+    res.end('Forbidden')
+    return
+  }
+
+  if (!fs.existsSync(resolvedPath)) {
     res.writeHead(404)
     res.end('Artifact not found')
     return
   }
 
-  const ext = path.extname(filePath)
+  const ext = path.extname(resolvedPath)
   const mime = MIME[ext] ?? 'application/octet-stream'
   res.setHeader('Content-Type', mime)
   res.writeHead(200)
-  fs.createReadStream(filePath).pipe(res)
+  fs.createReadStream(resolvedPath).pipe(res)
 }
 
 function handleStatic(

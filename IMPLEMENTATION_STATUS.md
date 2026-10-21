@@ -154,9 +154,9 @@
 | `packages/config/test/config.test.ts` | 6 | ✅ passed |
 | `packages/layout-analyzer/test/analyzer.test.ts` | 3 | ✅ passed |
 | `packages/visual-diff/test/visual-diff.test.ts` | 4 | ✅ passed |
-| `packages/policy-engine/test/policy.test.ts` | 5 | ✅ passed |
-| `packages/git-integration/test/git-integration.test.ts` | 3 | ✅ passed |
-| `packages/ai-engine/test/ai-engine.test.ts` | 9 | ✅ passed |
+| `packages/policy-engine/test/policy.test.ts` | 6 | ✅ passed |
+| `packages/git-integration/test/git-integration.test.ts` | 4 | ✅ passed |
+| `packages/ai-engine/test/ai-engine.test.ts` | 14 | ✅ passed |
 | `tests/unit/contracts.test.ts` | 1 | ✅ passed |
 
 ### End-to-End Tests
@@ -164,7 +164,7 @@
 |------|-------|--------|
 | `tests/e2e/breakpoint-detective.test.ts` | 1 | ✅ passed |
 | `tests/e2e/pixeltruth.test.ts` | 1 | ✅ passed |
-| `tests/e2e/policy-gate.test.ts` | 1 | ✅ passed |
+| `tests/e2e/policy-gate.test.ts` | 4 | ✅ passed |
 
 **Total: 10 test files, 44 tests passed, 0 failed.**
 
