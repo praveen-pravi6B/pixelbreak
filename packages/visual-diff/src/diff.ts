@@ -80,6 +80,8 @@ export function compareImages(
     for (let y = 0; y < height; y++) {
       for (let x = 0; x < width; x++) {
         const idx = (width * y + x) * 4;
+        // Guard against out-of-bounds access on mismatched PNG data buffers
+        if (idx + 3 >= diffPng.data.length) continue;
         const r = diffPng.data[idx];
         const g = diffPng.data[idx + 1];
         const b = diffPng.data[idx + 2];

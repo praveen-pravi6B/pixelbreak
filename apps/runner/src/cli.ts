@@ -13,7 +13,7 @@ import { saveReport } from './report-store.js';
 import { startDashboardServer } from './dashboard-server.js';
 import fs from 'node:fs';
 import path from 'node:path';
-import { exec } from 'node:child_process';
+import { execFile } from 'node:child_process';
 
 const program = new Command();
 
@@ -242,6 +242,23 @@ ai:
     } else {
       console.log(`⚠️  ${hookResult.message}`);
     }
+
+    // Add .pixelbreak/ to .gitignore to prevent screenshots/diffs being committed
+    const gitignorePath = path.join(process.cwd(), '.gitignore');
+    const IGNORE_ENTRY = '.pixelbreak/';
+    try {
+      const existing = fs.existsSync(gitignorePath)
+        ? fs.readFileSync(gitignorePath, 'utf-8')
+        : '';
+      if (!existing.split('\n').some(line => line.trim() === IGNORE_ENTRY)) {
+        fs.appendFileSync(gitignorePath, `\n# PixelBreak — local scan artifacts\n${IGNORE_ENTRY}\n`);
+        console.log(`✅ Added ${IGNORE_ENTRY} to .gitignore`);
+      } else {
+        console.log(`ℹ️  ${IGNORE_ENTRY} already in .gitignore`);
+      }
+    } catch {
+      console.log(`⚠️  Could not update .gitignore — add '${IGNORE_ENTRY}' manually.`);
+    }
   });
 
 program
@@ -331,15 +348,16 @@ program.parse(process.argv);
 // Helpers
 // ---------------------------------------------------------------------------
 
+// SECURITY: use execFile (no shell) to prevent injection from URL characters
 function openBrowser(url: string): void {
-  const cmd = process.platform === 'darwin'
-    ? `open "${url}"`
-    : process.platform === 'win32'
-    ? `start "${url}"`
-    : `xdg-open "${url}"`;
-  exec(cmd, err => {
-    if (err) console.log(`   Could not open browser automatically. Visit: ${url}`);
-  });
+  const onErr = () => console.log(`   Could not open browser automatically. Visit: ${url}`);
+  if (process.platform === 'darwin') {
+    execFile('open', [url], onErr);
+  } else if (process.platform === 'win32') {
+    execFile('cmd', ['/c', 'start', '', url], onErr);
+  } else {
+    execFile('xdg-open', [url], onErr);
+  }
 }
 
 async function fetchAiExplanations(

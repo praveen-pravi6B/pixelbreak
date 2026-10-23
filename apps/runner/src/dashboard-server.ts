@@ -105,17 +105,35 @@ function handleArtifact(
   url: string,
   outputDir: string
 ): void {
-  // /artifacts/<absolute-path> — serve the file directly
-  // The client encodes the absolute path after /artifacts/
+  // /artifacts/<path> — serve a screenshot, diff, or baseline image.
+  // The client encodes the file path (absolute or relative) after /artifacts/.
   const encodedPath = url.slice('/artifacts/'.length)
-  const filePath = decodeURIComponent(encodedPath)
+  const decodedPath = decodeURIComponent(encodedPath)
 
-  // Validate that the resolved path is within the outputDir to prevent traversal
-  const artifactRoot = path.resolve(outputDir, 'artifacts')
-  const resolvedPath = path.resolve(filePath)
-  if (!resolvedPath.startsWith(artifactRoot + path.sep) && resolvedPath !== artifactRoot) {
+  // SECURITY: resolve relative to outputDir so relative paths like
+  // "../../etc/passwd" cannot escape .pixelbreak/ regardless of CWD.
+  // Absolute paths are preserved (path.resolve ignores the base for absolute).
+  const allowedRoot = path.resolve(outputDir)
+  const resolvedPath = path.isAbsolute(decodedPath)
+    ? path.resolve(decodedPath)
+    : path.resolve(outputDir, decodedPath)
+
+  if (!resolvedPath.startsWith(allowedRoot + path.sep) && resolvedPath !== allowedRoot) {
     res.writeHead(403)
     res.end('Forbidden')
+    return
+  }
+
+  // Reject symlinks — never follow them out of the allowed root
+  try {
+    if (fs.lstatSync(resolvedPath).isSymbolicLink()) {
+      res.writeHead(403)
+      res.end('Forbidden')
+      return
+    }
+  } catch {
+    res.writeHead(404)
+    res.end('Artifact not found')
     return
   }
 

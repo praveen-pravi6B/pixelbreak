@@ -88,13 +88,14 @@ describe('Phase C --- PixelTruth Visual Regression E2E', () => {
     });
 
     const baselineScanResult = await baselineScanner.run();
-    expect(Object.keys(baselineScanResult.screenshots).length).toBe(4);
+    const expectedViewportCount = config.viewports.widths.length;
+    expect(Object.keys(baselineScanResult.screenshots).length).toBe(expectedViewportCount);
 
     const { updatedFiles } = updateBaselinesFromScreenshots(
       baselineScanResult.screenshots,
       baselineScanner.baselineDir
     );
-    expect(updatedFiles.length).toBe(4);
+    expect(updatedFiles.length).toBe(expectedViewportCount);
     for (const f of updatedFiles) {
       expect(fs.existsSync(f)).toBe(true);
     }
@@ -128,7 +129,7 @@ describe('Phase C --- PixelTruth Visual Regression E2E', () => {
     );
 
     // Controlled change should be detected across all viewports
-    expect(visualFindingsModified.length).toBe(4);
+    expect(visualFindingsModified.length).toBe(expectedViewportCount);
 
     for (const finding of visualFindingsModified) {
       expect(finding.category).toBe('visual-regression');

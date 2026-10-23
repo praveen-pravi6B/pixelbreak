@@ -19,7 +19,8 @@
   },
   "dependencies": {
     "@pixelbreak/contracts": "workspace:*",
-    "yaml": "^2.7.0"
+    "yaml": "^2.7.0",
+    "zod": "^3.24.1"
   },
   "devDependencies": {
     "typescript": "^5.7.2",

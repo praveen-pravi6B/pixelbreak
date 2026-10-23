@@ -57,6 +57,20 @@ export function findConfigFile(dir: string = process.cwd()): string | null {
 }
 
 export function loadConfig(filePath?: string): ValidatedConfig {
+  // SECURITY: if a custom config path is provided, ensure it stays within
+  // the project directory — prevents reading arbitrary files via --config /etc/passwd
+  if (filePath) {
+    const resolved = path.resolve(filePath);
+    const cwd = path.resolve(process.cwd());
+    if (!resolved.startsWith(cwd + path.sep) && resolved !== cwd) {
+      throw new ConfigError(
+        `Config file must be within the project directory.\n` +
+        `  Given: ${filePath}\n` +
+        `  Project root: ${cwd}`
+      );
+    }
+  }
+
   const targetPath = filePath ?? findConfigFile();
   if (!targetPath || !fs.existsSync(targetPath)) {
     throw new ConfigError(

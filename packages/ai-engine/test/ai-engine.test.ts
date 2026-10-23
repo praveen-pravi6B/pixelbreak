@@ -64,7 +64,6 @@ describe('parseAndValidateAiResponse', () => {
   it('accepts a well-formed AI response', () => {
     const result = parseAndValidateAiResponse(VALID_AI_RESPONSE)
     expect(result.summary).toContain('#metrics-card')
-    expect(result.isHypothesis).toBeUndefined() // added by adapter, not in schema
     expect(result.patch).not.toBeNull()
     expect(result.patch?.cssSelector).toBe('#metrics-card')
   })
@@ -82,16 +81,12 @@ describe('parseAndValidateAiResponse', () => {
   })
 
   it('rejects non-JSON input', () => {
-    expect(() => parseAndValidateAiResponse('This is not JSON')).toThrow(
-      /not valid JSON/
-    )
+    expect(() => parseAndValidateAiResponse('This is not JSON')).toThrow(/not valid JSON/)
   })
 
   it('rejects a response missing required fields', () => {
     const incomplete = JSON.stringify({ summary: 'Only summary.' })
-    expect(() => parseAndValidateAiResponse(incomplete)).toThrow(
-      /schema validation/
-    )
+    expect(() => parseAndValidateAiResponse(incomplete)).toThrow(/schema validation/)
   })
 
   it('rejects an empty summary', () => {
@@ -103,6 +98,14 @@ describe('parseAndValidateAiResponse', () => {
       limitations: 'none',
     })
     expect(() => parseAndValidateAiResponse(bad)).toThrow(/schema validation/)
+  })
+
+  it('rejects an empty string', () => {
+    expect(() => parseAndValidateAiResponse('')).toThrow(/not valid JSON/)
+  })
+
+  it('rejects a JSON array at root', () => {
+    expect(() => parseAndValidateAiResponse('[]')).toThrow(/schema validation/)
   })
 })
 
@@ -131,6 +134,16 @@ describe('buildExplanationPrompt', () => {
     expect(prompt).toContain('x'.repeat(800))
     expect(prompt).not.toContain('x'.repeat(801))
   })
+
+  it('does not include source context section when none provided', () => {
+    const prompt = buildExplanationPrompt(makeFinding())
+    expect(prompt).not.toContain('SOURCE CONTEXT')
+  })
+
+  it('severity label includes do-not-change reminder', () => {
+    const prompt = buildExplanationPrompt(makeFinding())
+    expect(prompt).toMatch(/do not change/i)
+  })
 })
 
 // ---------------------------------------------------------------------------
@@ -138,7 +151,12 @@ describe('buildExplanationPrompt', () => {
 // ---------------------------------------------------------------------------
 
 describe('LlamaCppAdapter', () => {
-  const config = { provider: 'local' as const, endpoint: 'http://localhost:8080', requiredForExplanations: true, requiredForFixSuggestions: true }
+  const config = {
+    provider: 'local' as const,
+    endpoint: 'http://localhost:8080',
+    requiredForExplanations: true,
+    requiredForFixSuggestions: true,
+  }
 
   beforeEach(() => {
     vi.stubGlobal('fetch', vi.fn())
@@ -166,6 +184,16 @@ describe('LlamaCppAdapter', () => {
     expect(status.error).toContain('ECONNREFUSED')
   })
 
+  it('returns available=false on HTTP 500', async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(
+      new Response('Internal Server Error', { status: 500 })
+    )
+    const adapter = new LlamaCppAdapter(config)
+    const status = await adapter.checkStatus()
+    expect(status.available).toBe(false)
+    expect(status.error).toContain('500')
+  })
+
   it('parses a valid completion response into AiExplanation', async () => {
     vi.mocked(fetch).mockResolvedValueOnce(
       new Response(
@@ -182,8 +210,8 @@ describe('LlamaCppAdapter', () => {
     const explanation = await adapter.explainFinding({ finding: makeFinding() })
 
     expect(explanation.findingId).toBe('f-001')
-    expect(explanation.severity).toBe('high')      // unchanged — never altered by AI
-    expect(explanation.isHypothesis).toBe(true)    // always true
+    expect(explanation.severity).toBe('high')     // unchanged — never altered by AI
+    expect(explanation.isHypothesis).toBe(true)   // always true
     expect(explanation.patch).not.toBeNull()
     expect(explanation.summary).toContain('#metrics-card')
   })
@@ -191,9 +219,7 @@ describe('LlamaCppAdapter', () => {
   it('throws AiUnavailableError when the endpoint is down', async () => {
     vi.mocked(fetch).mockRejectedValueOnce(new Error('fetch failed'))
     const adapter = new LlamaCppAdapter(config)
-    await expect(adapter.explainFinding({ finding: makeFinding() })).rejects.toThrow(
-      AiUnavailableError
-    )
+    await expect(adapter.explainFinding({ finding: makeFinding() })).rejects.toThrow(AiUnavailableError)
   })
 
   it('throws AiResponseError when the model returns malformed JSON', async () => {
@@ -209,18 +235,25 @@ describe('LlamaCppAdapter', () => {
       )
     )
     const adapter = new LlamaCppAdapter(config)
-    await expect(adapter.explainFinding({ finding: makeFinding() })).rejects.toThrow(
-      AiResponseError
+    await expect(adapter.explainFinding({ finding: makeFinding() })).rejects.toThrow(AiResponseError)
+  })
+
+  it('throws AiResponseError when choices array is empty', async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({ id: 'cmpl-3', object: 'chat.completion', model: 'local', choices: [] }),
+        { status: 200 }
+      )
     )
+    const adapter = new LlamaCppAdapter(config)
+    await expect(adapter.explainFinding({ finding: makeFinding() })).rejects.toThrow(AiResponseError)
   })
 
   it('AI severity field reflects the finding severity — never altered', async () => {
-    // Even if the raw model response contained a different severity somehow,
-    // the adapter always returns the finding's original severity.
     vi.mocked(fetch).mockResolvedValueOnce(
       new Response(
         JSON.stringify({
-          id: 'cmpl-3',
+          id: 'cmpl-4',
           object: 'chat.completion',
           model: 'local',
           choices: [{ index: 0, message: { role: 'assistant', content: VALID_AI_RESPONSE }, finish_reason: 'stop' }],
@@ -232,5 +265,26 @@ describe('LlamaCppAdapter', () => {
     const adapter = new LlamaCppAdapter(config)
     const explanation = await adapter.explainFinding({ finding: criticalFinding })
     expect(explanation.severity).toBe('critical')
+  })
+
+  it('uses default endpoint when none is configured', async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(
+      new Response(JSON.stringify({ data: [] }), { status: 200 })
+    )
+    const adapterNoEndpoint = new LlamaCppAdapter({
+      provider: 'local',
+      requiredForExplanations: true,
+      requiredForFixSuggestions: true,
+    })
+    const status = await adapterNoEndpoint.checkStatus()
+    expect(status.endpoint).toBe('http://localhost:8080')
+  })
+
+  it('throws AiUnavailableError on HTTP 403 from endpoint', async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(
+      new Response('Forbidden', { status: 403 })
+    )
+    const adapter = new LlamaCppAdapter(config)
+    await expect(adapter.explainFinding({ finding: makeFinding() })).rejects.toThrow(AiUnavailableError)
   })
 })

@@ -7,10 +7,10 @@ project:
     - /
 
 viewports:
-  profile: desktop-only
-  minWidth: 1024
+  profile: responsive
+  minWidth: 375
   maxWidth: 1920
-  widths: [1024, 1280, 1440, 1920]
+  widths: [375, 768, 1024, 1280, 1440, 1920]
   required: true
 
 checks:
