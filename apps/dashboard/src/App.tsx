@@ -91,13 +91,15 @@ function Header({ report }: { report: EnrichedReport }) {
       zIndex: 100,
     }}>
       <img
+        src="/favicon.png"
+        alt="PixelBreak"
+        style={{ height: 32, width: 32, objectFit: 'contain' }}
+      />
+      <img
         src="/logo.png"
         alt="PixelBreak"
-        style={{ height: 36, width: 36, borderRadius: 6, objectFit: 'cover' }}
+        style={{ height: 28, objectFit: 'contain' }}
       />
-      <span style={{ fontWeight: 700, fontSize: 16, letterSpacing: '-0.02em' }}>
-        PixelBreak
-      </span>
       <span className={`badge badge-${decision}`}>
         {decision === 'pass' ? '✓ PASS' : '✗ BLOCKED'}
       </span>
