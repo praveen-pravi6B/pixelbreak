@@ -39,11 +39,11 @@ export default function App() {
   })
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden' }}>
       <Header report={report} />
-      <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
-        {/* Left panel */}
-        <div style={{ width: 380, borderRight: '1px solid var(--border)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+      <div style={{ display: 'flex', flex: 1, overflow: 'hidden', minHeight: 0 }}>
+        {/* Left panel — sticky, scrolls independently */}
+        <div style={{ width: 380, borderRight: '1px solid var(--border)', display: 'flex', flexDirection: 'column', overflow: 'hidden', flexShrink: 0 }}>
           <ScanSummary report={report} />
           <Filters
             severityFilter={severityFilter}
@@ -51,7 +51,7 @@ export default function App() {
             onSeverity={setSeverityFilter}
             onCategory={setCategoryFilter}
           />
-          <div style={{ flex: 1, overflowY: 'auto' }}>
+          <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
             <FindingsList
               findings={filtered}
               selected={selected}
@@ -59,8 +59,8 @@ export default function App() {
             />
           </div>
         </div>
-        {/* Right detail panel */}
-        <div style={{ flex: 1, overflowY: 'auto', padding: 20 }}>
+        {/* Right detail panel — scrolls independently */}
+        <div style={{ flex: 1, overflowY: 'auto', padding: 20, minHeight: 0 }}>
           {selected
             ? <FindingDetail
                 finding={selected}
@@ -86,10 +86,15 @@ function Header({ report }: { report: EnrichedReport }) {
       gap: 16,
       background: 'var(--surface)',
       flexShrink: 0,
+      position: 'sticky',
+      top: 0,
+      zIndex: 100,
     }}>
-      <span style={{ fontWeight: 700, fontSize: 16, letterSpacing: '-0.02em' }}>
-        ■ PixelBreak
-      </span>
+      <img
+        src="/logo-header.png"
+        alt="PixelBreak"
+        style={{ height: 60, objectFit: 'contain' }}
+      />
       <span className={`badge badge-${decision}`}>
         {decision === 'pass' ? '✓ PASS' : '✗ BLOCKED'}
       </span>

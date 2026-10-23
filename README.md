@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="./apps/dashboard/public/logo.png" alt="PixelBreak" width="180" />
+</p>
+
 # PixelBreak
 
 **Local-first responsive breakpoint detection and visual regression testing — no cloud, no account, no drama.**
