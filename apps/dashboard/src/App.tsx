@@ -91,14 +91,9 @@ function Header({ report }: { report: EnrichedReport }) {
       zIndex: 100,
     }}>
       <img
-        src="/favicon.png"
+        src="/logo-header.png"
         alt="PixelBreak"
-        style={{ height: 32, width: 32, objectFit: 'contain' }}
-      />
-      <img
-        src="/logo.png"
-        alt="PixelBreak"
-        style={{ height: 28, objectFit: 'contain' }}
+        style={{ height: 60, objectFit: 'contain' }}
       />
       <span className={`badge badge-${decision}`}>
         {decision === 'pass' ? '✓ PASS' : '✗ BLOCKED'}
