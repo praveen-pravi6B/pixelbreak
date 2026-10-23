@@ -346,6 +346,29 @@ See [`docs/privacy.md`](./docs/privacy.md) for full details.
 
 ---
 
+## FAQ
+
+**Q: Do I need to run `pixelbreak baseline update` before every commit?**
+No. When you stage a file, PixelBreak automatically uses `git show HEAD:<file>` to get the previous version as the baseline. `baseline update` is only needed the very first time, or when you want to explicitly approve a new visual state.
+
+**Q: My commit is blocked by a visual regression I intentionally made. What do I do?**
+If the layout change is intentional (e.g. you fixed a bug and the layout genuinely shifted), use the emergency bypass once:
+```bash
+PIXELBREAK_BYPASS=1 git commit -m "fix: your message"
+```
+The next commit will compare against this new state automatically.
+
+**Q: Can I use Ollama or LM Studio instead of llama.cpp?**
+Yes. Any server that exposes an OpenAI-compatible `/v1/chat/completions` endpoint works. Set `ai.endpoint` in `.pixelbreak.yml` to point to it.
+
+**Q: Will PixelBreak test my app at mobile widths if I only configured desktop?**
+Never. PixelBreak only tests the widths you list in `viewports.widths`. A `desktop-only` profile with `widths: [1024, 1280, 1440, 1920]` will never touch 375px or 768px.
+
+**Q: Is my source code sent to the AI?**
+No. The AI receives only: the finding summary, measured pixel geometry, and relevant computed CSS values — a few hundred characters at most. No source files, no screenshots, no telemetry leave your machine.
+
+---
+
 ## Third-Party Licenses
 
 See [`THIRD_PARTY_NOTICES.md`](./THIRD_PARTY_NOTICES.md) for the full list of runtime dependencies and their licenses.
