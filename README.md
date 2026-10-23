@@ -242,6 +242,10 @@ node apps/runner/dist/cli.js ai status
 
 ## Dashboard
 
+<p align="center">
+  <img src="./cover.png" alt="PixelBreak — Catch UI issues before your users do" width="100%" />
+</p>
+
 After a scan with moderate/high/critical findings, open the localhost report dashboard:
 
 ```bash
