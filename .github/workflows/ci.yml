@@ -23,7 +23,7 @@ jobs:
       - name: Setup pnpm
         uses: pnpm/action-setup@v6
         with:
-          version: 9
+          version: latest
           run_install: false
 
       - name: Get pnpm store path
@@ -39,10 +39,10 @@ jobs:
             ${{ runner.os }}-pnpm-
 
       - name: Install dependencies
-        run: pnpm install --no-frozen-lockfile --trust-lockfile --allow-build esbuild --allow-build playwright
+        run: pnpm install --no-frozen-lockfile
 
       - name: Install Playwright Chromium
-        run: pnpm exec playwright install chromium
+        run: pnpm --filter @pixelbreak/runner exec playwright install chromium
 
       - name: Build
         run: pnpm build
