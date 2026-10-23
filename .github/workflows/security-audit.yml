@@ -23,11 +23,11 @@ jobs:
       - name: Setup pnpm
         uses: pnpm/action-setup@v6
         with:
-          version: 9
+          version: latest
           run_install: false
 
       - name: Install dependencies
-        run: pnpm install --no-frozen-lockfile --trust-lockfile --allow-build esbuild
+        run: pnpm install --no-frozen-lockfile
 
       - name: Run pnpm audit
         run: pnpm audit --audit-level=high
